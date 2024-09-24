@@ -3,10 +3,12 @@ package ru.yandex.practicum.filmorate.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
-
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,17 +21,26 @@ public class FilmController {
     private int currentId = 1;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public Film addFilm(@Valid @RequestBody Film film) {
+    public ResponseEntity<Film> addFilm(@Valid @RequestBody Film film) {
         film.setId(currentId++);
         films.add(film);
         log.info("Фильм добавлен: {}", film);
-        return film;
+        return ResponseEntity.status(HttpStatus.CREATED).body(film);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String errorMessage = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> error.getDefaultMessage())
+                .findFirst()
+                .orElse("Ошибка валидации");
+        return ResponseEntity.badRequest().body(errorMessage);
     }
 
     @PutMapping
     public Film updateFilm(@Valid @RequestBody Film film) {
-        if (film.getId() <= 0 || film.getId() > currentId - 1) { // Use currentId to check valid ID range
+        if (film.getId() <= 0 || film.getId() > currentId - 1) {
             log.warn("Попытка обновления фильма с ID: {}", film.getId());
             throw new ValidationException("Фильм с таким ID не найден.");
         }
@@ -42,5 +53,4 @@ public class FilmController {
     public List<Film> getAllFilms() {
         return films;
     }
-
 }

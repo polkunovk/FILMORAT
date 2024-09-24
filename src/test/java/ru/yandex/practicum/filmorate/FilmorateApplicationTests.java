@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import ru.yandex.practicum.filmorate.controller.FilmController;
 import ru.yandex.practicum.filmorate.controller.UserController;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
@@ -117,7 +119,7 @@ class FilmorateApplicationTests {
 	@Test
 	void userUpdateValidationTest() {
 		user.setId(100);
-		Exception exception = assertThrows(ValidationException.class, () -> {
+		ValidationException exception = assertThrows(ValidationException.class, () -> {
 			userController.updateUser(user);
 		});
 		assertEquals("Пользователь с таким ID не найден.", exception.getMessage());
@@ -126,9 +128,33 @@ class FilmorateApplicationTests {
 	@Test
 	void filmUpdateValidationTest() {
 		film.setId(100);
-		Exception exception = assertThrows(ValidationException.class, () -> {
+		ValidationException exception = assertThrows(ValidationException.class, () -> {
 			filmController.updateFilm(film);
 		});
 		assertEquals("Фильм с таким ID не найден.", exception.getMessage());
+	}
+
+	@Test
+	void testFilmCreateWithInvalidData() {
+		film.setName(""); // Устанавливаем некорректные данные
+		try {
+			filmController.addFilm(film);
+			fail("Ожидалась ошибка валидации при создании фильма с пустым названием.");
+		} catch (HttpClientErrorException.BadRequest e) {
+			assertEquals(HttpStatus.BAD_REQUEST.value(), e.getRawStatusCode());
+			assertTrue(e.getResponseBodyAsString().contains("Название фильма должно быть заполнено"));
+		}
+	}
+
+	@Test
+	void testUserCreateWithInvalidData() {
+		user.setEmail(""); // Устанавливаем некорректные данные
+		try {
+			userController.addUser(user);
+			fail("Ожидалась ошибка валидации при создании пользователя с пустым email.");
+		} catch (HttpClientErrorException.BadRequest e) {
+			assertEquals(HttpStatus.BAD_REQUEST.value(), e.getRawStatusCode());
+			assertTrue(e.getResponseBodyAsString().contains("Электронная почта не может быть пустой"));
+		}
 	}
 }
